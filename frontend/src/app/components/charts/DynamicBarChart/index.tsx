@@ -13,7 +13,11 @@ import {
   Chip,
   Divider,
   Grid,
-  Paper
+  Paper,
+  IconButton,
+  Drawer,
+  useTheme,
+  useMediaQuery
 } from '@mui/material';
 import { Bar } from 'react-chartjs-2';
 import {
@@ -28,6 +32,8 @@ import {
 import type { Dimension, FilterOptions, BarChartRequest } from './types';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import CloseIcon from '@mui/icons-material/Close';
 
 ChartJS.register(
   CategoryScale,
@@ -61,6 +67,12 @@ const DynamicBarChart: React.FC<DynamicBarChartProps> = () => {
   const [chartData, setChartData] = useState<any>({ labels: [], datasets: [] });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+
+  // 响应式设计
+  const theme = useTheme();
+  const isSmallScreen = useMediaQuery(theme.breakpoints.down('md'));
+  const isExtraSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
 
   /**
      * 初始化：加载国家/城市下拉框选项
@@ -255,268 +267,333 @@ const DynamicBarChart: React.FC<DynamicBarChartProps> = () => {
     }));
   };
 
-  return (
-    <Paper elevation={3} sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+  // 筛选面板内容
+  const filterPanel = (
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      gap: 3,
+      p: isSmallScreen ? 2 : 0,
+      width: isSmallScreen ? '80vw' : 250,
+      maxWidth: 400
+    }}>
+      {isSmallScreen && (
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6">Filters</Typography>
+          <IconButton onClick={() => setFilterDrawerOpen(false)}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
+      )}
+      
+      <FormControl component="fieldset">
+        <FormLabel component="legend" sx={{ fontWeight: 'bold' }}>Dimension</FormLabel>
+        <RadioGroup
+          value={request.dimension}
+          onChange={handleDimensionChange}
+        >
+          <FormControlLabel value="level" control={<Radio size={isSmallScreen ? "small" : "medium"} />} label="Company Level" />
+          <FormControlLabel value="country" control={<Radio size={isSmallScreen ? "small" : "medium"} />} label="Country" />
+          <FormControlLabel value="city" control={<Radio size={isSmallScreen ? "small" : "medium"} />} label="City" />
+        </RadioGroup>
+      </FormControl>
 
-      {/* 加载状态：居中显示加载动画 */}
+      <Divider />
+
+      {/* 公司层级筛选（多选下拉） */}
+      <FormControl fullWidth>
+        <FormLabel sx={{ fontWeight: 'bold' }}>Company Level</FormLabel>
+        <Autocomplete
+          multiple
+          options={[1, 2, 3, 4, 5]}
+          getOptionLabel={(option) => `Level ${option}`}
+          value={request.filter.level || []}
+          onChange={(event, newValue) => {
+            handleFilterChange('level', newValue);
+          }}
+          renderInput={(params) => (
+            <TextField 
+              {...params} 
+              placeholder="Select level" 
+              size="small" 
+            />
+          )}
+          renderTags={(value, getTagProps) =>
+            value.map((option, index) => (
+              <Chip
+                key={option}
+                label={`Level ${option}`}
+                {...getTagProps({ index })}
+                size="small"
+              />
+            ))
+          }
+        />
+      </FormControl>
+
+      {/* 国家筛选（多选下拉） */}
+      <FormControl fullWidth sx={{ mt: 2 }}>
+        <FormLabel>Country</FormLabel>
+        <Autocomplete
+          multiple
+          options={availableCountries}
+          value={request.filter.country || []}
+          onChange={(e, newValue) => handleFilterChange('country', newValue)}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              placeholder="Select country"
+              variant="outlined"
+              size="small"
+            />
+          )}
+          renderTags={(value, getTagProps) =>
+            value.map((option, index) => (
+              <Chip
+                {...getTagProps({ index })}
+                label={option}
+                size="small"
+                sx={{ m: 0.5 }}
+              />
+            ))
+          }
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              p: 1,
+              flexWrap: 'wrap'
+            }
+          }}
+        />
+      </FormControl>
+
+      {/* 城市筛选（多选下拉，联动国家） */}
+      <FormControl fullWidth sx={{ mt: 2 }}>
+        <FormLabel>City</FormLabel>
+        <Autocomplete
+          multiple
+          options={availableCities}
+          value={request.filter.city || []}
+          onChange={(e, newValue) => handleFilterChange('city', newValue)}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              placeholder={availableCities.length ? "Select city" : "No cities available"}
+              variant="outlined"
+              size="small"
+              disabled={availableCities.length === 0}
+            />
+          )}
+          renderTags={(value, getTagProps) =>
+            value.map((option, index) => (
+              <Chip
+                {...getTagProps({ index })}
+                label={option}
+                size="small"
+                sx={{ m: 0.5 }}
+              />
+            ))
+          }
+          disabled={availableCities.length === 0}
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              p: 1,
+              flexWrap: 'wrap'
+            }
+          }}
+        />
+      </FormControl>
+
+      {/* 成立年份范围（输入框） */}
+      <FormControl fullWidth>
+        <FormLabel sx={{ fontWeight: 'bold' }}>Founded Year Range</FormLabel>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <TextField
+            type="number"
+            label="From"
+            value={request.filter.founded_year?.start || 1900}
+            onChange={(e) => handleFilterChange('founded_year', {
+              ...request.filter.founded_year,
+              start: Number(e.target.value)
+            })}
+            inputProps={{
+              min: 1900,
+              max: request.filter.founded_year?.end || new Date().getFullYear()
+            }}
+            size="small"
+            fullWidth
+          />
+          <TextField
+            type="number"
+            label="To"
+            value={request.filter.founded_year?.end || new Date().getFullYear()}
+            onChange={(e) => handleFilterChange('founded_year', {
+              ...request.filter.founded_year,
+              end: Number(e.target.value)
+            })}
+            inputProps={{
+              min: request.filter.founded_year?.start || 1900,
+              max: new Date().getFullYear()
+            }}
+            size="small"
+            fullWidth
+          />
+        </Box>
+      </FormControl>
+
+      {/* 年营收范围（滑块） */}
+      <FormControl fullWidth>
+        <FormLabel sx={{ fontWeight: 'bold' }}>Annual Revenue Range ($)</FormLabel>
+        <Box sx={{ px: 2 }}>
+          <Slider
+            value={[
+              request.filter.annual_revenue?.min || 0,
+              request.filter.annual_revenue?.max || 1000000
+            ]}
+            onChange={(event, newValue) => {
+              const [min, max] = newValue as number[];
+              handleFilterChange('annual_revenue', { min, max });
+            }}
+            valueLabelDisplay="auto"
+            min={0}
+            max={1000000}
+            step={10000}
+            valueLabelFormat={(value) => `$${value.toLocaleString()}`}
+            size="small"
+          />
+        </Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+          <Typography variant="caption">
+            ${(request.filter.annual_revenue?.min || 0).toLocaleString()}
+          </Typography>
+          <Typography variant="caption">
+            ${(request.filter.annual_revenue?.max || 1000000).toLocaleString()}
+          </Typography>
+        </Box>
+      </FormControl>
+
+      {/* 员工数量范围（滑块） */}
+      <FormControl fullWidth>
+        <FormLabel sx={{ fontWeight: 'bold' }}>Employee Count Range</FormLabel>
+        <Box sx={{ px: 2 }}>
+          <Slider
+            value={[
+              request.filter.employees?.min || 0,
+              request.filter.employees?.max || 1000
+            ]}
+            onChange={(event, newValue) => {
+              const [min, max] = newValue as number[];
+              handleFilterChange('employees', { min, max });
+            }}
+            valueLabelDisplay="auto"
+            min={0}
+            max={1000}
+            step={10}
+            size="small"
+          />
+        </Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+          <Typography variant="caption">
+            {request.filter.employees?.min || 0}
+          </Typography>
+          <Typography variant="caption">
+            {request.filter.employees?.max || 1000}
+          </Typography>
+        </Box>
+      </FormControl>
+    </Box>
+  );
+
+  return (
+    <Paper elevation={3} sx={{ p: isSmallScreen ? 1 : 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
       {isLoading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
           <CircularProgress />
         </Box>
       )}
 
-      {/* 错误状态：显示错误提示 */}
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
       )}
 
-      {/* 图表与筛选器：仅在无加载/错误状态时显示 */}
       {!isLoading && !error && (
-        <Grid container spacing={0} sx={{ height: '100vh', width: '100%' }}>
-          {/* 左侧筛选器面板（固定宽度，可滚动） */}
-          <Grid item sx={{
-            width: 250, height: '100%',
-            overflowY: 'auto',
-            pr: 2,
-            borderRight: '1px solid #eee'
-          }}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <FormControl component="fieldset">
-                <FormLabel component="legend" sx={{ fontWeight: 'bold' }}>Dimension</FormLabel>
-                <RadioGroup
-                  value={request.dimension}
-                  onChange={handleDimensionChange}
-                >
-                  <FormControlLabel value="level" control={<Radio />} label="Company Level" />
-                  <FormControlLabel value="country" control={<Radio />} label="Country" />
-                  <FormControlLabel value="city" control={<Radio />} label="City" />
-                </RadioGroup>
-              </FormControl>
-
-              <Divider />
-
-              {/* 公司层级筛选（多选下拉） */}
-              <FormControl fullWidth>
-                <FormLabel sx={{ fontWeight: 'bold' }}>Company Level</FormLabel>
-                <Autocomplete
-                  multiple
-                  options={[1, 2, 3, 4, 5]}
-                  getOptionLabel={(option) => `Level ${option}`}
-                  value={request.filter.level || []}
-                  onChange={(event, newValue) => {
-                    handleFilterChange('level', newValue);
-                  }}
-                  renderInput={(params) => (
-                    <TextField {...params} placeholder="Select levels" size="small" />
-                  )}
-                  renderTags={(value, getTagProps) =>
-                    value.map((option, index) => (
-                      <Chip
-                        key={option}
-                        label={`Level ${option}`}
-                        {...getTagProps({ index })}
-                        size="small"
-                      />
-                    ))
-                  }
-                />
-              </FormControl>
-
-              {/* 国家筛选（多选下拉） */}
-              <FormControl fullWidth sx={{ mt: 2 }}>
-                <FormLabel>Country</FormLabel>
-                <Autocomplete
-                  multiple
-                  options={availableCountries}
-                  value={request.filter.country || []}
-                  onChange={(e, newValue) => handleFilterChange('country', newValue)}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      placeholder="Select countries"
-                      variant="outlined"
-                      size="small"
-                    />
-                  )}
-                  renderTags={(value, getTagProps) =>
-                    value.map((option, index) => (
-                      <Chip
-                        {...getTagProps({ index })}
-                        label={option}
-                        size="small"
-                        sx={{ m: 0.5 }}
-                      />
-                    ))
-                  }
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      p: 1,
-                      flexWrap: 'wrap'
-                    }
-                  }}
-                />
-              </FormControl>
-
-              {/* 城市筛选（多选下拉，联动国家） */}
-              <FormControl fullWidth sx={{ mt: 2 }}>
-                <FormLabel>City</FormLabel>
-                <Autocomplete
-                  multiple
-                  options={availableCities}
-                  value={request.filter.city || []}
-                  onChange={(e, newValue) => handleFilterChange('city', newValue)}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      placeholder={availableCities.length ? "Select cities" : "No cities available"}
-                      variant="outlined"
-                      size="small"
-                      disabled={availableCities.length === 0}
-                    />
-                  )}
-                  renderTags={(value, getTagProps) =>
-                    value.map((option, index) => (
-                      <Chip
-                        {...getTagProps({ index })}
-                        label={option}
-                        size="small"
-                        sx={{ m: 0.5 }}
-                      />
-                    ))
-                  }
-                  disabled={availableCities.length === 0}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      p: 1,
-                      flexWrap: 'wrap'
-                    }
-                  }}
-                />
-              </FormControl>
-
-              {/* 成立年份范围（输入框） */}
-              <FormControl fullWidth>
-                <FormLabel sx={{ fontWeight: 'bold' }}>Founded Year Range</FormLabel>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <TextField
-                    type="number"
-                    label="From"
-                    value={request.filter.founded_year?.start || 1900}
-                    onChange={(e) => handleFilterChange('founded_year', {
-                      ...request.filter.founded_year,
-                      start: Number(e.target.value)
-                    })}
-                    inputProps={{
-                      min: 1900,
-                      max: request.filter.founded_year?.end || new Date().getFullYear()
-                    }}
-                    size="small"
-                    fullWidth
-                  />
-                  <TextField
-                    type="number"
-                    label="To"
-                    value={request.filter.founded_year?.end || new Date().getFullYear()}
-                    onChange={(e) => handleFilterChange('founded_year', {
-                      ...request.filter.founded_year,
-                      end: Number(e.target.value)
-                    })}
-                    inputProps={{
-                      min: request.filter.founded_year?.start || 1900,
-                      max: new Date().getFullYear()
-                    }}
-                    size="small"
-                    fullWidth
-                  />
-                </Box>
-              </FormControl>
-
-              {/* 年营收范围（滑块） */}
-              <FormControl fullWidth>
-                <FormLabel sx={{ fontWeight: 'bold' }}>Annual Revenue Range ($)</FormLabel>
-                <Box sx={{ px: 2 }}>
-                  <Slider
-                    value={[
-                      request.filter.annual_revenue?.min || 0,
-                      request.filter.annual_revenue?.max || 1000000
-                    ]}
-                    onChange={(event, newValue) => {
-                      const [min, max] = newValue as number[];
-                      handleFilterChange('annual_revenue', { min, max });
-                    }}
-                    valueLabelDisplay="auto"
-                    min={0}
-                    max={1000000}
-                    step={10000}
-                    valueLabelFormat={(value) => `$${value.toLocaleString()}`}
-                  />
-                </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="caption">
-                    ${(request.filter.annual_revenue?.min || 0).toLocaleString()}
-                  </Typography>
-                  <Typography variant="caption">
-                    ${(request.filter.annual_revenue?.max || 1000000).toLocaleString()}
-                  </Typography>
-                </Box>
-              </FormControl>
-
-              {/* 员工数量范围（滑块） */}
-              <FormControl fullWidth>
-                <FormLabel sx={{ fontWeight: 'bold' }}>Employees Range</FormLabel>
-                <Box sx={{ px: 2 }}>
-                  <Slider
-                    value={[
-                      request.filter.employees?.min || 0,
-                      request.filter.employees?.max || 1000
-                    ]}
-                    onChange={(event, newValue) => {
-                      const [min, max] = newValue as number[];
-                      handleFilterChange('employees', { min, max });
-                    }}
-                    valueLabelDisplay="auto"
-                    min={0}
-                    max={1000}
-                    step={10}
-                  />
-                </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="caption">
-                    {request.filter.employees?.min || 0}
-                  </Typography>
-                  <Typography variant="caption">
-                    {request.filter.employees?.max || 1000}
-                  </Typography>
-                </Box>
-              </FormControl>
+        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          {/* 小屏幕上的筛选按钮 */}
+          {isSmallScreen && (
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
+              <IconButton 
+                onClick={() => setFilterDrawerOpen(true)}
+                size="small"
+                sx={{ border: '1px solid', borderColor: 'divider' }}
+              >
+                <FilterListIcon />
+                <Typography variant="body2" sx={{ ml: 0.5 }}>
+                  Filters
+                </Typography>
+              </IconButton>
             </Box>
-          </Grid>
-
-          {/* 右侧图表面板（占满剩余宽度，支持横向滚动） */}
-          <Grid item sx={{ flex: 1, height: '100%', minWidth: 0, pl: 2 }}>
-            <Box sx={{
-              height: '100%',
-              width: '100%',
-              overflowX: chartData.labels.length > 15 ? 'auto' : 'hidden',
-              backgroundColor: '#f9f9f9',
-              borderRadius: '4px',
-              p: 2,
-            }}>
-              {/* 图表容器：最小宽度适配标签数量，避免挤压 */}
-              <div style={{
-                width: '100%',
-                minWidth: `${Math.max(800, chartData.labels.length * 30)}px`,
+          )}
+          
+          <Grid container spacing={0} sx={{ height: '100%', width: '100%' }}>
+            {/* 大屏幕上的侧边筛选面板 */}
+            {!isSmallScreen && (
+              <Grid item sx={{
+                width: 250, 
                 height: '100%',
-                minHeight: '500px'
+                overflowY: 'auto',
+                pr: 2,
+                borderRight: '1px solid #eee'
               }}>
-                <Bar options={getChartOptions()} data={chartData} />
-              </div>
-            </Box>
+                {filterPanel}
+              </Grid>
+            )}
+
+            {/* 右侧图表面板 */}
+            <Grid item sx={{ 
+              flex: 1, 
+              height: '100%', 
+              minWidth: 0, 
+              pl: isSmallScreen ? 0 : 2 
+            }}>
+              <Box sx={{
+                height: '100%',
+                width: '100%',
+                overflowX: chartData.labels.length > 15 ? 'auto' : 'hidden',
+                backgroundColor: '#f9f9f9',
+                borderRadius: '4px',
+                p: isSmallScreen ? 1 : 2,
+              }}>
+                <div style={{
+                  width: '100%',
+                  minWidth: `${Math.max(800, chartData.labels.length * 30)}px`,
+                  height: '100%',
+                  minHeight: '400px'
+                }}>
+                  <Bar options={getChartOptions()} data={chartData} />
+                </div>
+              </Box>
+            </Grid>
           </Grid>
-        </Grid>
+        </Box>
       )}
+
+      {/* 小屏幕上的筛选抽屉 */}
+      <Drawer
+        anchor="right"
+        open={filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
+        sx={{
+          '& .MuiDrawer-paper': {
+            boxSizing: 'border-box',
+            width: '80vw',
+            maxWidth: 400,
+            p: 2
+          }
+        }}
+      >
+        {filterPanel}
+      </Drawer>
     </Paper>
   );
 };

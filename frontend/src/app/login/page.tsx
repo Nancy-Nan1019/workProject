@@ -19,7 +19,7 @@ import {
   CircularProgress,
   CssBaseline,
   Avatar,
-  Grid // 确保 Grid 已经导入
+  Grid 
 } from '@mui/material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
@@ -39,6 +39,15 @@ const theme = createTheme({
   },
   typography: {
     fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+  },
+  breakpoints: {
+    values: {
+      xs: 0,
+      sm: 600,
+      md: 900,
+      lg: 1200,
+      xl: 1536,
+    },
   },
 });
 
@@ -168,97 +177,119 @@ export default function LoginPage() {
 
   return (
     <ThemeProvider theme={theme}>
-      <Container component="main" maxWidth="xs">
-        <CssBaseline />
-        <Box
+      <CssBaseline />
+      <Grid
+        container
+        justifyContent="center"
+        alignItems="center"
+        sx={{
+          minHeight: '100vh',
+          background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+          p: 2
+        }}
+      >
+        <Grid 
+          item 
+          xs={12} 
+          sm={8} 
+          md={6} 
+          lg={4}
           sx={{
-            marginTop: 8,
             display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            padding: 3,
-            borderRadius: 2,
-            boxShadow: 3,
-            backgroundColor: 'background.paper',
+            justifyContent: 'center'
           }}
         >
-          <Avatar sx={{ m: 1, bgcolor: 'primary.main' }}>
-            <LockOutlinedIcon />
-          </Avatar>
-          <Typography component="h1" variant="h5" sx={{ mt: 2 }}>
-            登录您的账户
-          </Typography>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              padding: { xs: 2, sm: 3, md: 4 },
+              borderRadius: 2,
+              boxShadow: 3,
+              backgroundColor: 'background.paper',
+              width: '100%',
+              maxWidth: 400
+            }}
+          >
+            <Avatar sx={{ m: 1, bgcolor: 'primary.main' }}>
+              <LockOutlinedIcon />
+            </Avatar>
+            <Typography component="h1" variant="h5" sx={{ mt: 2, mb: 2 }}>
+              登录您的账户
+            </Typography>
 
-          {/* 登录错误提示 */}
-          {loginError && (
-            <Alert severity="error" sx={{ width: '100%', mt: 2 }}>
-              {loginError}
-            </Alert>
-          )}
+            {/* 登录错误提示 */}
+            {loginError && (
+              <Alert severity="error" sx={{ width: '100%', mt: 2, mb: 2 }}>
+                {loginError}
+              </Alert>
+            )}
 
-          <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1, width: '100%' }}>
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="email"
-              label="邮箱地址"
-              name="email"
-              autoComplete="email"
-              autoFocus
-              value={formData.email}
-              onChange={handleChange}
-              error={!!errors.email}
-              helperText={errors.email}
-              variant="outlined"
-            />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              name="password"
-              label="密码"
-              type="password"
-              id="password"
-              autoComplete="current-password"
-              value={formData.password}
-              onChange={handleChange}
-              error={!!errors.password}
-              helperText={errors.password}
-              variant="outlined"
-            />
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              sx={{
-                mt: 3,
-                mb: 2,
-                py: 1.5,
-                fontSize: '1rem',
-                fontWeight: 'bold',
-                textTransform: 'none',
-                borderRadius: 1
-              }}
-              disabled={loading}
-            >
-              {loading ? <CircularProgress size={24} color="inherit" /> : '登 录'}
-            </Button>
-            <Grid container justifyContent="space-between">
-              <Grid item>
-                <Link href="/forgot-password" variant="body2">
-                  忘记密码?
-                </Link>
+            <Box component="form" onSubmit={handleSubmit} noValidate sx={{ width: '100%' }}>
+              <TextField
+                margin="normal"
+                required
+                fullWidth
+                id="email"
+                label="邮箱地址"
+                name="email"
+                autoComplete="email"
+                autoFocus
+                value={formData.email}
+                onChange={handleChange}
+                error={!!errors.email}
+                helperText={errors.email}
+                variant="outlined"
+              />
+              <TextField
+                margin="normal"
+                required
+                fullWidth
+                name="password"
+                label="密码"
+                type="password"
+                id="password"
+                autoComplete="current-password"
+                value={formData.password}
+                onChange={handleChange}
+                error={!!errors.password}
+                helperText={errors.password}
+                variant="outlined"
+              />
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                sx={{
+                  mt: 3,
+                  mb: 2,
+                  py: 1.5,
+                  fontSize: '1rem',
+                  fontWeight: 'bold',
+                  textTransform: 'none',
+                  borderRadius: 1
+                }}
+                disabled={loading}
+              >
+                {loading ? <CircularProgress size={24} color="inherit" /> : '登 录'}
+              </Button>
+              <Grid container justifyContent="space-between">
+                <Grid item>
+                  <Link href="/forgot-password" variant="body2">
+                    忘记密码?
+                  </Link>
+                </Grid>
+                <Grid item>
+                  <Link href="/register" variant="body2">
+                    注册新账号
+                  </Link>
+                </Grid>
               </Grid>
-              <Grid item>
-                <Link href="/register" variant="body2">
-                  注册新账号
-                </Link>
-              </Grid>
-            </Grid>
+            </Box>
           </Box>
-        </Box>
-      </Container>
+        </Grid>
+      </Grid>
     </ThemeProvider>
   );
 }

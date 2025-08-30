@@ -1,9 +1,13 @@
 import * as d3 from 'd3';
 import React, { useEffect, useRef, useState } from 'react';
 import { CompanyNode } from './types';
-import { Box, Typography, List, ListItem, ListItemText, Paper } from '@mui/material';
-import { ExpandMore, ExpandLess } from '@mui/icons-material';
-import IconButton from '@mui/material/IconButton';
+import { Box, Typography, List, ListItem, ListItemText, Paper, 
+  IconButton,
+  Drawer,
+  useTheme,
+  useMediaQuery } from '@mui/material';
+import InfoIcon from '@mui/icons-material/Info';
+import CloseIcon from '@mui/icons-material/Close';
 
 /**
  * 公司层级气泡图组件
@@ -22,6 +26,12 @@ const CompanyHierarchyBubbleChart: React.FC<BubbleChartProps> = ({
   const focusNodeRef = useRef<any>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [infoDrawerOpen, setInfoDrawerOpen] = useState(false);
+  
+  // 响应式设计
+  const theme = useTheme();
+  const isSmallScreen = useMediaQuery(theme.breakpoints.down('md'));
+  const isExtraSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
 
   /**
    * 颜色比例尺 - 生成蓝色系渐变
@@ -215,16 +225,165 @@ const CompanyHierarchyBubbleChart: React.FC<BubbleChartProps> = ({
 
   }, [width, height, data]);
 
+  // 信息面板内容
+  const infoPanel = (
+    <Box sx={{ 
+      p: 2,
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      borderLeft: '1px solid #E6F0FF',
+      overflow: 'hidden'
+    }}>
+      {isSmallScreen && (
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6">Company Details</Typography>
+          <IconButton onClick={() => setInfoDrawerOpen(false)} size="small">
+            <CloseIcon />
+          </IconButton>
+        </Box>
+      )}
+      
+      {/* 当前节点信息 */}
+      <Box sx={{
+        borderBottom: '1px solid #eee',
+        backgroundColor: '#F5F9FF',
+        p: isSmallScreen ? 0 : 2,
+        mb: 2
+      }}>
+        <Typography variant="h6" sx={{
+          color: '#2E80FF',
+          mb: 1,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          fontSize: isSmallScreen ? '1rem' : '1.25rem'
+        }}>
+          {currentNode?.company_name || "Company Details"}
+        </Typography>
+        {currentNode && (
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="body2" sx={{ color: '#666', mb: 0.5, fontSize: isSmallScreen ? '0.8rem' : '0.875rem' }}>
+              <strong>Code:</strong> {currentNode.company_code}
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#666', mb: 0.5, fontSize: isSmallScreen ? '0.8rem' : '0.875rem' }}>
+              <strong>Level:</strong> {currentNode.level}
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#666', mb: 0.5, fontSize: isSmallScreen ? '0.8rem' : '0.875rem' }}>
+              <strong>Location:</strong> {currentNode.city}, {currentNode.country}
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#666', mb: 0.5, fontSize: isSmallScreen ? '0.8rem' : '0.875rem' }}>
+              <strong>Founded Year:</strong> {currentNode.founded_year}
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#666', mb: 0.5, fontSize: isSmallScreen ? '0.8rem' : '0.875rem' }}>
+              <strong>Revenue:</strong> ${currentNode.annual_revenue?.toLocaleString() || 'N/A'}
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#666', mb: 0.5, fontSize: isSmallScreen ? '0.8rem' : '0.875rem' }}>
+              <strong>Employees:</strong> {currentNode.employees?.toLocaleString() || 'N/A'}
+            </Typography>
+          </Box>
+        )}
+      </Box>
+
+      {/* 子节点列表 */}
+      <Box sx={{
+        flex: 1,
+        overflowY: 'auto',
+        '&::-webkit-scrollbar': {
+          width: '6px'
+        },
+        '&::-webkit-scrollbar-thumb': {
+          backgroundColor: '#2E80FF',
+          borderRadius: '3px'
+        }
+      }}>
+        <Typography variant="subtitle2" sx={{
+          p: 1,
+          color: '#2E80FF',
+          position: 'sticky',
+          top: 0,
+          backgroundColor: '#F5F9FF',
+          zIndex: 1,
+          borderBottom: '1px solid #eee',
+          fontSize: isSmallScreen ? '0.8rem' : '0.875rem'
+        }}>
+          {currentNode?.level === 1 ? "Global Departments" :
+            currentNode?.level === 2 ? "Regional Offices" :
+              "Subsidiaries"} ({currentLevelData.length})
+        </Typography>
+
+        {currentLevelData.length > 0 ? (
+          <List dense sx={{ py: 0 }}>
+            {currentLevelData.map((company) => (
+              <ListItem
+                key={company.company_code}
+                sx={{
+                  px: 1,
+                  py: 1,
+                  borderBottom: '1px solid #f0f0f0',
+                  '&:hover': {
+                    backgroundColor: 'rgba(46, 128, 255, 0.05)',
+                    cursor: 'pointer'
+                  }
+                }}
+              >
+                <ListItemText
+                  primary={
+                    <Typography variant="body2" sx={{
+                      color: '#2E80FF',
+                      fontWeight: 500,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      fontSize: isSmallScreen ? '0.8rem' : '0.875rem'
+                    }}>
+                      {company.company_name}
+                    </Typography>
+                  }
+                  secondary={
+                    <>
+                      <Typography variant="caption" component="div" sx={{ fontSize: isSmallScreen ? '0.7rem' : '0.75rem' }}>
+                        <strong>Code:</strong> {company.company_code} | <strong>Level:</strong> {company.level}
+                      </Typography>
+                      <Typography variant="caption" component="div" sx={{ fontSize: isSmallScreen ? '0.7rem' : '0.75rem' }}>
+                        <strong>Location:</strong> {company.city}, {company.country}
+                      </Typography>
+                      <Typography variant="caption" component="div" sx={{ fontSize: isSmallScreen ? '0.7rem' : '0.75rem' }}>
+                        <strong>Founded:</strong> {company.founded_year} | <strong>Revenue:</strong> ${company.annual_revenue?.toLocaleString() || 'N/A'}
+                      </Typography>
+                      <Typography variant="caption" component="div" sx={{ fontSize: isSmallScreen ? '0.7rem' : '0.75rem' }}>
+                        <strong>Employees:</strong> {company.employees?.toLocaleString() || 'N/A'}
+                      </Typography>
+                    </>
+                  }
+                  sx={{ my: 0 }}
+                />
+              </ListItem>
+            ))}
+          </List>
+        ) : (
+          <Box sx={{
+            p: 2,
+            textAlign: 'center',
+            color: '#666'
+          }}>
+            <Typography variant="body2" sx={{ fontSize: isSmallScreen ? '0.8rem' : '0.875rem' }}>
+              {currentNode?.level === 4 ? "No subsidiaries" : "Select a node to view details"}
+            </Typography>
+          </Box>
+        )}
+      </Box>
+    </Box>
+  );
+
   return (
     <Box sx={{
       display: 'flex',
       height: '100%',
-      gap: 2,
+      gap: isSmallScreen ? 0 : 2,
       position: 'relative',
       backgroundColor: '#F5F9FF',
-      padding: 2,
+      padding: isSmallScreen ? 1 : 2,
       borderRadius: 2,
-
     }}>
       {/* Tooltip 容器 */}
       <div
@@ -253,9 +412,20 @@ const CompanyHierarchyBubbleChart: React.FC<BubbleChartProps> = ({
         borderRadius: 2,
         backgroundColor: 'transparent',
       }}>
-        <Typography variant="h6" sx={{ mb: 1, px: 2, color: '#2E80FF' }}>
-          {currentNode ? currentNode.company_name : "Company Hierarchy"}
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, px: 1 }}>
+          <Typography variant="h6" sx={{ color: '#2E80FF', fontSize: isSmallScreen ? '1rem' : '1.25rem' }}>
+            {currentNode ? currentNode.company_name : "Company Hierarchy"}
+          </Typography>
+          {isSmallScreen && (
+            <IconButton 
+              onClick={() => setInfoDrawerOpen(true)}
+              size="small"
+              sx={{ color: '#2E80FF' }}
+            >
+              <InfoIcon />
+            </IconButton>
+          )}
+        </Box>
         <svg
           ref={svgRef}
           width={width}
@@ -263,140 +433,36 @@ const CompanyHierarchyBubbleChart: React.FC<BubbleChartProps> = ({
         />
       </Paper>
 
-      {/* 详细信息面板 */}
-      <Paper elevation={3} sx={{
-        width: 350, // 稍微加宽以容纳更多信息
-        height: height, // 与气泡图高度一致
-        display: 'flex',
-        flexDirection: 'column',
-        borderLeft: '1px solid #E6F0FF',
-        overflow: 'hidden'
-      }}>
-        {/* 当前节点信息 - 固定部分 */}
-        <Box sx={{
-          p: 2,
-          borderBottom: '1px solid #eee',
-          backgroundColor: '#F5F9FF'
+      {/* 大屏幕上的信息面板 */}
+      {!isSmallScreen && (
+        <Paper elevation={3} sx={{
+          width: 350,
+          height: height,
+          display: 'flex',
+          flexDirection: 'column',
+          borderLeft: '1px solid #E6F0FF',
+          overflow: 'hidden'
         }}>
-          <Typography variant="h6" sx={{
-            color: '#2E80FF',
-            mb: 1,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis'
-          }}>
-            {currentNode?.company_name || "Company Details"}
-          </Typography>
-          {currentNode && (
-            <Box sx={{ mt: 1 }}>
-              <Typography variant="body2" sx={{ color: '#666', mb: 0.5 }}>
-                <strong>Code:</strong> {currentNode.company_code}
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#666', mb: 0.5 }}>
-                <strong>Level:</strong> {currentNode.level}
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#666', mb: 0.5 }}>
-                <strong>Location:</strong> {currentNode.city}, {currentNode.country}
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#666', mb: 0.5 }}>
-                <strong>Founded:</strong> {currentNode.founded_year}
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#666', mb: 0.5 }}>
-                <strong>Revenue:</strong> ${currentNode.annual_revenue?.toLocaleString() || 'N/A'}
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#666', mb: 0.5 }}>
-                <strong>Employees:</strong> {currentNode.employees?.toLocaleString() || 'N/A'}
-              </Typography>
-            </Box>
-          )}
-        </Box>
+          {infoPanel}
+        </Paper>
+      )}
 
-        {/* 子节点列表 - 可滚动部分 */}
-        <Box sx={{
-          flex: 1,
-          overflowY: 'auto',
-          '&::-webkit-scrollbar': {
-            width: '6px'
-          },
-          '&::-webkit-scrollbar-thumb': {
-            backgroundColor: '#2E80FF',
-            borderRadius: '3px'
+      {/* 小屏幕上的信息抽屉 */}
+      <Drawer
+        anchor="right"
+        open={infoDrawerOpen}
+        onClose={() => setInfoDrawerOpen(false)}
+        sx={{
+          '& .MuiDrawer-paper': {
+            boxSizing: 'border-box',
+            width: '85vw',
+            maxWidth: 400,
+            p: 2
           }
-        }}>
-          <Typography variant="subtitle2" sx={{
-            p: 2,
-            color: '#2E80FF',
-            position: 'sticky',
-            top: 0,
-            backgroundColor: '#F5F9FF',
-            zIndex: 1,
-            borderBottom: '1px solid #eee'
-          }}>
-            {currentNode?.level === 1 ? "Global Divisions" :
-              currentNode?.level === 2 ? "Regional Offices" :
-                "Subsidiaries"} ({currentLevelData.length})
-          </Typography>
-
-          {currentLevelData.length > 0 ? (
-            <List dense sx={{ py: 0 }}>
-              {currentLevelData.map((company) => (
-                <ListItem
-                  key={company.company_code}
-                  sx={{
-                    px: 2,
-                    py: 1.5,
-                    borderBottom: '1px solid #f0f0f0',
-                    '&:hover': {
-                      backgroundColor: 'rgba(46, 128, 255, 0.05)',
-                      cursor: 'pointer'
-                    }
-                  }}
-                >
-                  <ListItemText
-                    primary={
-                      <Typography variant="body2" sx={{
-                        color: '#2E80FF',
-                        fontWeight: 500,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                      }}>
-                        {company.company_name}
-                      </Typography>
-                    }
-                    secondary={
-                      <>
-                        <Typography variant="caption" component="div">
-                          <strong>Code:</strong> {company.company_code} | <strong>Level:</strong> {company.level}
-                        </Typography>
-                        <Typography variant="caption" component="div">
-                          <strong>Location:</strong> {company.city}, {company.country}
-                        </Typography>
-                        <Typography variant="caption" component="div">
-                          <strong>Founded:</strong> {company.founded_year} | <strong>Revenue:</strong> ${company.annual_revenue?.toLocaleString() || 'N/A'}
-                        </Typography>
-                        <Typography variant="caption" component="div">
-                          <strong>Employees:</strong> {company.employees?.toLocaleString() || 'N/A'}
-                        </Typography>
-                      </>
-                    }
-                    sx={{ my: 0 }}
-                  />
-                </ListItem>
-              ))}
-            </List>
-          ) : (
-            <Box sx={{
-              p: 3,
-              textAlign: 'center',
-              color: '#666'
-            }}>
-              <Typography variant="body2">
-                {currentNode?.level === 4 ? "No subsidiaries" : "Select a node to view details"}
-              </Typography>
-            </Box>
-          )}
-        </Box>
-      </Paper>
+        }}
+      >
+        {infoPanel}
+      </Drawer>
     </Box>
   );
 };
